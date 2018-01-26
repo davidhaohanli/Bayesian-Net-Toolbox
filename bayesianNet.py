@@ -28,12 +28,13 @@ class Factor(object):
 
     '''
 
-    def __init__(self,name,scope,varValsDict=None):
+    def __init__(self,scope,varValsDict=None):
         '''
         :param scope:  tuple of chars
         :param valsDistribution:  dict of distribution of factor values on the random variable grid
         '''
-        self.name=name
+        if type(scope) is not tuple:
+            scope=(scope,)
         self.scope = scope
         self.var_assignment(); # assign values to each random variables to generate a grid
         if varValsDict:
@@ -59,6 +60,8 @@ class Factor(object):
         :param varVals: tuples,assignment to random variables
         :param val: value of the grid point
         '''
+        if type(varVals) is not tuple:
+            scope=(varVals,)
         self.valDistirution[varVals] = val
 
     def get_val(self,varVals):
@@ -66,6 +69,8 @@ class Factor(object):
         :param vars: tuples,assignment to query random variables
         :return: value of the grid point, None for unassigned yet
         '''
+        if type(varVals) is not tuple:
+            scope=(varVals,)
         return self.valDistirution[varVals]
 
     def get_all_val(self):
@@ -138,12 +143,31 @@ class VE(object):
         return pre
 
     def two_facs_multi(self,a,b):
-        #TODO
-        pass;
+        '''
+        :param a: a Factor
+        :param b: a Factor
+        :return: a new Factor
+        '''
+        newFactor = Factor(tuple(set(a.scope+b.scope))) #newFactor scope: scope of a + scope of b - common scope
+
+        for thisVarVals in newFactor.val_check():
+
+            thisVarValsDict = dict()
+            for i,var in enumerate(newFactor.scope):
+                thisVarValsDict[var] = thisVarVals[i]
+            #dict form : {'a':True,'b':False,'c':True}
+
+            a_val =  a.get_val(tuple([thisVarValsDict[var] for var in a.scope]))
+            #find the random variable assignment of a scope e.g. (b,a) from the dict, and then get value
+            b_val = b.get_val(tuple([thisVarValsDict[var] for var in b.scope]))
+            # find the random variable assignment of b scope e.g. (c,a) from the dict, and then get value
+            newFactor.add_val(thisVarVals,a_val*b_val)
+
+        return newFactor
 
     def query(self,query,evidence):
         #TODO
-        pass;
+        pass
 
     def sum_product(self,vars):
         #TODO
@@ -159,8 +183,33 @@ class VE(object):
 
 
 def main_test():
+    fac1=Factor(('a','b'),{(True,True):0.1,(False,True):0.3,(True,False):0.2,(False,False):0.5})
+    fac2=Factor(('b',),{(True,):0.6,(False,):0.9})
+    fac3=Factor(('d','c','b'),{(True,True,True):0.1,(False,True,True):0.3,(True,False,True):0.2,(False,False,True):0.5,\
+                               (True, True, False): 0.1, (False, True, False): 0.3, (True, False, False): 0.2,(False, False, False): 0.5})
+    ve=VE('notModelYet')
+    res=ve.facs_multi([fac1,fac2,fac3])
+    '''
+    Out[2]:
+    {(False, False, False, False): 0.225,
+     (False, False, False, True): 0.09000000000000001,
+     (False, False, True, False): 0.09000000000000001,
+     (False, False, True, True): 0.036000000000000004,
+     (False, True, False, False): 0.135,
+     (False, True, False, True): 0.045000000000000005,
+     (False, True, True, False): 0.054000000000000006,
+     (False, True, True, True): 0.018000000000000002,
+     (True, False, False, False): 0.09,
+     (True, False, False, True): 0.036,
+     (True, False, True, False): 0.03,
+     (True, False, True, True): 0.012,
+     (True, True, False, False): 0.054,
+     (True, True, False, True): 0.018,
+     (True, True, True, False): 0.018,
+     (True, True, True, True): 0.006}
+    '''
     #TODO IMPLEMENT A TEST FUNC
-    pass;
+    pass
 
 if __name__ == '__main__':
     # TODO PRINT WORDS ON THE TEST MAIN
