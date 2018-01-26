@@ -1,6 +1,3 @@
-# mie1516proj1
-Bayesian Net Toolbox
-=======
 # Assignment 1
 
 See Blackboard (Course Materials) for due date.
