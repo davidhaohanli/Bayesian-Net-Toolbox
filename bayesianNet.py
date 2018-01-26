@@ -19,37 +19,75 @@ class DirectedGraphNode(object):
          self.children = None #DGN object
 
 class Factor(object):
+    '''
 
-    def __init__(self,scope,vals=None):
+    self.valDistirution is the factor value distribution on the random variable assignemnt grid
+    in form as:
+    {(True,True,True):0.1,(True,True,False):0.9,(True,False,True):None,...,(False,False,False):1.6}
+    * None for value pending to be determined
+
+    '''
+
+    def __init__(self,name,scope,varValsDict=None):
         '''
-        :param scope: # tuple of chars
-        :param vals: # diction of distribution of factor values on the random variable grid
+        :param scope:  tuple of chars
+        :param valsDistribution:  dict of distribution of factor values on the random variable grid
         '''
+        self.name=name
         self.scope = scope
         self.var_assignment(); # assign values to each random variables to generate a grid
-        if not vals:
-            #TODO
-            pass
+        if varValsDict:
+            self.add_all_vals(varValsDict)
 
     def var_assignment(self):
-        self.vals=list(itertools.product((True,False),repeat=len(self.scope))) # repeat scope times to get the binary grid
-        #TODO
-        pass
-
-    def add_val(self,vars,val):
         '''
-        :param vars:
-        :param val:
-        :return:
+        repeat scope size times to get the binary grid
         '''
-        #TODO
-        pass;
+        self.valDistirution = dict()
+        for thisVarVals in itertools.product((True,False),repeat=len(self.scope)):
+            self.valDistirution[thisVarVals] = None
 
-    def get_val(self,vars):
-        #TODO
-        pass;
+    def add_all_vals(self,varValsDict):
+        '''
+        :param varValsDict: dict of [tuples,float]    e.g. {(True,True):0.9}
+        '''
+        for thisVarVals,val in varValsDict.items():
+            self.add_val(thisVarVals,val)
+
+    def add_val(self,varVals,val):
+        '''
+        :param varVals: tuples,assignment to random variables
+        :param val: value of the grid point
+        '''
+        self.valDistirution[varVals] = val
+
+    def get_val(self,varVals):
+        '''
+        :param vars: tuples,assignment to query random variables
+        :return: value of the grid point, None for unassigned yet
+        '''
+        return self.valDistirution[varVals]
+
+    def get_all_val(self):
+        '''
+        :return: self.valDistribution
+        '''
+        return self.valDistirution
+
+    def val_check(self):
+        '''
+        :return: points on the grid with value unassigned. if all assigned, return True
+        '''
+        res=[]
+        for thisVarVals,val in self.valDistirution.items():
+            if val is None:
+                res.append(thisVarVals)
+        if res:
+            return res
+        return True
 
 class BayesianModel(object):
+    #TODO DESIGN OF NET
 
     def __init__(self,edges):
         #TODO
@@ -74,13 +112,18 @@ class BayesianModel(object):
 class VE(object):
 
     def __init__(self,model):
-
+        '''
+        :param model: a BayesianModel
+        '''
         self.model = model
-        #TODO
-        pass
 
     def facs_multi(self,factors,pre=None,isReduceVersion=False):
-
+        '''
+        :param factors: list of Factors
+        :param pre: a Factor
+        :param isReduceVersion: use functools.reduce or my own implementation
+        :return: new Factor
+        '''
         if isReduceVersion:
             return functools.reduce(self.two_facs_multi,factors)
 
@@ -120,5 +163,5 @@ def main_test():
     pass;
 
 if __name__ == '__main__':
-    #TODO COMMENT ON THE MAIN
+    # TODO PRINT WORDS ON THE TEST MAIN
     main_test()
