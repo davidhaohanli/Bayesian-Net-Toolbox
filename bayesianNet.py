@@ -190,8 +190,12 @@ def main_test():
     ve=VE('notModelYet')
     res=ve.facs_multi([fac1,fac2,fac3])
     '''
+    ############### NOT ('a','b','c','d') ##################
+    res.scope = ('b','c','a','d')
+
+    res.get_all_val()
     Out[2]:
-    {(False, False, False, False): 0.225,
+    {(False, False, False, False): 0.225,       ---- checked
      (False, False, False, True): 0.09000000000000001,
      (False, False, True, False): 0.09000000000000001,
      (False, False, True, True): 0.036000000000000004,
@@ -201,7 +205,7 @@ def main_test():
      (False, True, True, True): 0.018000000000000002,
      (True, False, False, False): 0.09,
      (True, False, False, True): 0.036,
-     (True, False, True, False): 0.03,
+     (True, False, True, False): 0.03,          ---- checked
      (True, False, True, True): 0.012,
      (True, True, False, False): 0.054,
      (True, True, False, True): 0.018,
