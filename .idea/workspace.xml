@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="743bc934-e1db-46f8-b33e-eccd292ab656" name="Default" comment="" />
+    <list default="true" id="743bc934-e1db-46f8-b33e-eccd292ab656" name="Default" comment="">
+      <change type="DELETED" beforePath="$PROJECT_DIR$/README.md" afterPath="" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.gitignore" afterPath="$PROJECT_DIR$/.gitignore" />
+    </list>
     <ignored path="untitled.iws" />
     <ignored path=".idea/workspace.xml" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -23,8 +26,8 @@
       <file leaf-file-name="bayesianNet.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/bayesianNet.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="495">
-              <caret line="195" column="21" selection-start-line="195" selection-start-column="21" selection-end-line="195" selection-end-column="21" />
+            <state relative-caret-position="272">
+              <caret line="204" column="16" selection-start-line="204" selection-start-column="16" selection-end-line="204" selection-end-column="16" />
               <folding />
             </state>
           </provider>
@@ -455,8 +458,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/bayesianNet.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="495">
-          <caret line="195" column="21" selection-start-line="195" selection-start-column="21" selection-end-line="195" selection-end-column="21" />
+        <state relative-caret-position="272">
+          <caret line="204" column="16" selection-start-line="204" selection-start-column="16" selection-end-line="204" selection-end-column="16" />
           <folding />
         </state>
       </provider>
