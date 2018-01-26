@@ -8,17 +8,8 @@ import functools
 
 #TODO COMMENT IN DETAILS
 
-class DirectedGraphNode(object):
-
-     def __init__(self, x):
-         '''
-         :param x: string for the node name
-         '''
-         self.parents = None #DGN object
-         self.name = x
-         self.children = None #DGN object
-
 class Factor(object):
+    #TODO REDESIGN FOR EVIDENCE
     '''
 
     self.valDistirution is the factor value distribution on the random variable assignemnt grid
@@ -87,16 +78,38 @@ class Factor(object):
         for thisVarVals,val in self.valDistirution.items():
             if val is None:
                 res.append(thisVarVals)
+        '''
         if res:
             return res
         return True
+        '''
+        return res
+
+class DirectedGraphNode(object):
+
+     def __init__(self, x):
+         '''
+         :param x: string for the node name
+         '''
+         self.parents = None #DGN object
+         self.name = x
+         self.children = None #DGN object
 
 class BayesianModel(object):
+    '''
+    self.nodes is the nodes over the graphical network
+    self.edges is the connection of all the nodes
+    self.factors is the factors of variables
+    '''
     #TODO DESIGN OF NET
 
     def __init__(self,edges):
         #TODO
         pass;
+
+    def add_edges(self,edges):
+        #TODO
+        pass
 
     def add_nodes(self,edges):
         #TODO
@@ -121,6 +134,69 @@ class VE(object):
         :param model: a BayesianModel
         '''
         self.model = model
+
+    def query(self,queries,evidences):
+        '''
+        :param queries: list of joint conditional probabilities pending to query      e.g. ['a','b']
+        :param evidences: dict of evidences       e.g. {'c':True,'d':False}
+        :return:
+        '''
+        factors = self.model.factors
+        allVars = self.model.nodes
+        varsToBeEliminated = []
+        for var in allVars:
+            if var not in queries or evidences.keys():
+                varsToBeEliminated.append(var)
+
+        factor_noEvidenceAssignment = self.sum_prduct_var(factors,varsToBeEliminated)
+        varEliminatedFactor = self.varAssignment(factor_noEvidenceAssignment,evidences)
+        normalizer = self.sum_ve(varsToBeEliminated,queries)
+        #TODO unfinished
+
+    def sum_product(self,factors,vars):
+        '''
+        :param factors: all factors
+        :param vars: variables to be eliminated
+        :return:
+        '''
+        vars = self.topoSort(vars)
+        for var in vars:
+            factors = self.sum_prduct_var(factors,var)
+        return self.facs_multi(factors)
+
+    def sum_prduct_var(self,factors,var):
+        '''
+        :param factors: all factors
+        :param var:  variable to be eliminated
+        :return: set of all factors after VE of this variable
+        '''
+        involvedFactors = []
+        otherFactors = []
+        for factor in factors:
+            if var in factor.scope:
+                involvedFactors.append(factor)
+            else:
+                otherFactors.append(factor)
+        newFactor = self.sum_ve(self.facs_multi(involvedFactors))
+        return otherFactors+newFactor
+
+    def varAssignment(self,factor,evidences):
+        '''
+        :param factor: factor containing evidences
+        :param evidences: a dict, evidences random variables assignment
+        :return: factor with values of variables assignment in evidences only
+        '''
+        #TODO
+        pass
+
+    def sum_ve(self,factor,vars):
+        '''
+        :param factor: factor containing variables
+        :param vars: variables to be eliminated
+        :return: new factor
+        '''
+        #TODO
+        pass;
 
     def facs_multi(self,factors,pre=None,isReduceVersion=False):
         '''
@@ -152,10 +228,10 @@ class VE(object):
 
         for thisVarVals in newFactor.val_check():
 
+            # dict form : {'a':True,'b':False,'c':True}
             thisVarValsDict = dict()
             for i,var in enumerate(newFactor.scope):
                 thisVarValsDict[var] = thisVarVals[i]
-            #dict form : {'a':True,'b':False,'c':True}
 
             a_val =  a.get_val(tuple([thisVarValsDict[var] for var in a.scope]))
             #find the random variable assignment of a scope e.g. (b,a) from the dict, and then get value
@@ -165,19 +241,12 @@ class VE(object):
 
         return newFactor
 
-    def query(self,query,evidence):
-        #TODO
-        pass
-
-    def sum_product(self,vars):
-        #TODO
-        pass;
-
-    def sum_prduct_var(self,var):
-        #TODO
-        pass;
-
-    def topoSort(self):
+    def topoSort(self,vars):
+        '''
+        :param vars: variables to be ordered according to topological orders
+        :return:  ordered variables
+        '''
+        return vars
         #TODO
         pass;
 
