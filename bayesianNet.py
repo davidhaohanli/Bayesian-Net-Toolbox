@@ -52,7 +52,7 @@ class Factor(object):
         :param val: value of the grid point
         '''
         if type(varVals) is not tuple:
-            scope=(varVals,)
+            varVals=(varVals,)
         self.valDistirution[varVals] = val
 
     def get_val(self,varVals):
@@ -160,8 +160,11 @@ class VE(object):
                 if var not in evidences.keys():
                     varsToBeEliminated.append(var)
 
-        factor_with_evidence = self.giveEvidence(self.sum_product(factors,varsToBeEliminated),evidences)
-        factor_with_evidence.normalize()
+        for i in range(len(factors)):
+            factors[i] = self.giveEvidence(factors[i],evidences)
+
+        factor_with_evidence = self.sum_product(factors,varsToBeEliminated)
+        factor_with_evidence.normalizing()
 
         print ('Query Variables: {}\n Probability Distribution:\n{}\n'.format(factor_with_evidence.scope,\
                                                                               factor_with_evidence.get_all_val()))
