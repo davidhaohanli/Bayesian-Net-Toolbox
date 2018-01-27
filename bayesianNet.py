@@ -78,12 +78,17 @@ class Factor(object):
         for thisVarVals,val in self.valDistirution.items():
             if val is None:
                 res.append(thisVarVals)
-        '''
         if res:
             return res
         return True
-        '''
-        return res
+
+    def normalizing(self):
+        if self.val_check():
+            normalizer = sum(self.valDistirution.values())
+            for thisVarVals in self.valDistirution.keys():
+                self.valDistirution[thisVarVals]/=normalizer
+        else:
+            print ('some values unassigned\n')
 
 class DirectedGraphNode(object):
 
@@ -136,11 +141,11 @@ class VE(object):
         self.model = model
 
     def query(self,queries,evidences,testNodes=None,testFactors=None):
-        #TODO RETURN TYPE
+        #TODO DELETE TEST VARS AND CORRESPONDING STATEMENT
         '''
         :param queries: list of joint conditional probabilities pending to query      e.g. ['a','b']
         :param evidences: dict of evidences       e.g. {'c':True,'d':False}
-        :return:
+        :return: a factor with value distribution on query variables only (normalized)
         '''
         if testNodes:
             factors = testFactors
@@ -156,9 +161,11 @@ class VE(object):
                     varsToBeEliminated.append(var)
 
         factor_with_evidence = self.giveEvidence(self.sum_product(factors,varsToBeEliminated),evidences)
-        normalizer = self.sum_ve(factor_with_evidence,queries)
-        #TODO PROCESSING
-        return factor_with_evidence,normalizer
+        factor_with_evidence.normalizing()
+
+        print ('Query Variables: {}\n Probability Distribution:\n{}\n'.format(factor_with_evidence.scope,\
+                                                                              factor_with_evidence.get_all_val()))
+        return factor_with_evidence
 
     def sum_product(self,factors,vars):
         '''
