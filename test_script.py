@@ -28,30 +28,28 @@ def facs_multi_test():
     pass
 
 def VE_test():
-    #TODO UNFINISHED DEBUGGING
-    res = ve.query(['a','d'],{'b':True},['a','b','c','d'],[fac1,fac2,fac3])
 
+    res = ve.query(['a','d'],{'b':True},['a','b','c','d'],[fac1,fac2,fac3])
     pass
 
 def sum_ve_test():
+
     res = ve.sum_ve(fac3,['b'])
     pass
 
 def evidence_test():
-    res = ve.giveEvidence(fac3, {'b':True})
 
+    res = ve.giveEvidence(fac3, {'b':True})
     pass;
 
 def sum_product_var_test():
 
     res=ve.sum_product_var([fac1,fac2,fac3],'a')
-
     pass
 
 def sum_product_test():
 
     res=ve.sum_product([fac1,fac2,fac3],'a')
-
     pass
 
 if __name__ == '__main__':

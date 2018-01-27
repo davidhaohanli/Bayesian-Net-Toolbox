@@ -82,7 +82,7 @@ class Factor(object):
             return res
         return True
 
-    def normalizing(self):
+    def normalize(self):
         if self.val_check():
             normalizer = sum(self.valDistirution.values())
             for thisVarVals in self.valDistirution.keys():
@@ -161,7 +161,7 @@ class VE(object):
                     varsToBeEliminated.append(var)
 
         factor_with_evidence = self.giveEvidence(self.sum_product(factors,varsToBeEliminated),evidences)
-        factor_with_evidence.normalizing()
+        factor_with_evidence.normalize()
 
         print ('Query Variables: {}\n Probability Distribution:\n{}\n'.format(factor_with_evidence.scope,\
                                                                               factor_with_evidence.get_all_val()))
@@ -299,6 +299,9 @@ class VE(object):
         :param vars: variables to be ordered according to topological orders
         :return:  ordered variables
         '''
+
+
+
         #TODO
         return vars
 
