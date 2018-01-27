@@ -61,7 +61,7 @@ class Factor(object):
         :return: value of the grid point, None for unassigned yet
         '''
         if type(varVals) is not tuple:
-            scope=(varVals,)
+            varVals=(varVals,)
         return self.valDistirution[varVals]
 
     def get_all_val(self):
