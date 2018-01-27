@@ -164,7 +164,7 @@ class VE(object):
             factors[i] = self.giveEvidence(factors[i],evidences)
 
         factor_with_evidence = self.sum_product(factors,varsToBeEliminated)
-        factor_with_evidence.normalizing()
+        factor_with_evidence.normalize()
 
         print ('Query Variables: {}\n Probability Distribution:\n{}\n'.format(factor_with_evidence.scope,\
                                                                               factor_with_evidence.get_all_val()))
