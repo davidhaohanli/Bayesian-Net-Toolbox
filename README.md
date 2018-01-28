@@ -1,3 +1,3 @@
 MIE 1516
 ========
-Bayesian Net Toolbox
+Bayesian Net Toolbox -- Finished! Hooray!
