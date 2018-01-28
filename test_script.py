@@ -6,7 +6,13 @@ fac3 = Factor(('d', 'c', 'b'), {(True, True, True): 0.1, (False, True, True): 0.
                                 (False, False, True): 0.5, (True, True, False): 0.1, (False, True, False): 0.3, (True, False, False): 0.2,
                                 (False, False, False): 0.5})
 
-ve = VE('notModelYet')
+class Model():
+    def __init__(self):
+        self.nodes={'a':['b','d'],'b':[],'d':[],'c':['d']}
+        self.factors=[fac1,fac2,fac3]
+
+model = Model()
+ve = VE(model)
 
 def facs_multi_test():
 
@@ -29,7 +35,7 @@ def facs_multi_test():
 
 def VE_test():
 
-    res = ve.query(['a','d'],{'b':True},['a','b','c','d'],[fac1,fac2,fac3])
+    res = ve.query(['a','d'],{'b':True})
     pass
 
 def sum_ve_test():
@@ -52,12 +58,16 @@ def sum_product_test():
     res=ve.sum_product([fac1,fac2,fac3],'a')
     pass
 
+def topoSort_test():
+    res=ve.topoSort(ve.model.nodes.keys())
+    pass
+
 if __name__ == '__main__':
     while 1:
 
         functions={'multi':facs_multi_test,'sum_var':sum_product_var_test,\
                    'sum_ve':sum_ve_test,'evidence':evidence_test,'sum_product':sum_product_test,\
-                   'VE':VE_test,'q':exit}
+                   'VE':VE_test,'topo':topoSort_test,'q':exit}
 
-        functions[input('Please input the test function name {} for exit: '.format(list(functions.keys())))]()
+        functions[input('Please input the test function name {}, q for exit: '.format(list(functions.keys())))]()
 

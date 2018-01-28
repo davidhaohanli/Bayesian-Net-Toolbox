@@ -158,19 +158,14 @@ class VE(object):
 
     @printVals
     @cleanser(list)
-    def query(self,queries,evidences,testNodes=None,testFactors=None):
-        #TODO DELETE TEST VARS AND CORRESPONDING STATEMENT
+    def query(self,queries:list,evidences:dict)->Factor:
         '''
         :param queries: list of joint conditional probabilities pending to query      e.g. ['a','b']
         :param evidences: dict of evidences       e.g. {'c':True,'d':False}
         :return: a factor with value distribution on query variables only (normalized)
         '''
-        if testNodes:
-            factors = testFactors
-            allVars = testNodes
-        else:
-            factors = self.model.factors
-            allVars = self.model.nodes
+        factors = self.model.factors
+        allVars = self.model.nodes.keys()
 
         varsToBeEliminated = []
         for var in allVars:
@@ -185,8 +180,7 @@ class VE(object):
 
         return factor_with_evidence
 
-    @cleanser(list,3)
-    def sum_product(self,factors,vars):
+    def sum_product(self,factors,vars)->Factor:
         '''
         :param factors: all factors
         :param vars: variables to be eliminated
@@ -198,8 +192,7 @@ class VE(object):
             factors = self.sum_product_var(factors,var)
         return self.facs_multi(factors)
 
-    @cleanser(list)
-    def sum_product_var(self,factors,var):
+    def sum_product_var(self,factors,var)->'list of Factors':
         '''
         :param factors: all factors
         :param var:  variable to be eliminated
@@ -215,8 +208,7 @@ class VE(object):
         newFactor = self.sum_ve(self.facs_multi(involvedFactors),var)
         return otherFactors+[newFactor]
 
-    @cleanser(list)
-    def facs_multi(self,factors,pre=None,isReduceVersion=False):
+    def facs_multi(self,factors,pre=None,isReduceVersion=False)->Factor:
         '''
         :param factors: list of Factors
         :param pre: a Factor
@@ -236,7 +228,7 @@ class VE(object):
             return res
         return pre
 
-    def two_facs_multi(self,a,b):
+    def two_facs_multi(self,a,b)->Factor:
         '''
         :param a: a Factor
         :param b: a Factor
@@ -259,7 +251,7 @@ class VE(object):
 
         return newFactor
 
-    def giveEvidence(self,factor,evidences):
+    def giveEvidence(self,factor,evidences)->Factor:
         '''
         :param factor: factor containing evidence variables
         :param evidences: dict of evidences       e.g. {'c':True,'d':False}
@@ -280,7 +272,7 @@ class VE(object):
         return newFactor
 
     @cleanser(list,3)
-    def sum_ve(self,factor,vars):
+    def sum_ve(self,factor,vars)->Factor:
         '''
         :param factor: factor containing variables
         :param vars: variables to be eliminated
@@ -314,19 +306,28 @@ class VE(object):
         :return:  ordered variables (reversed)
         '''
         color=dict()
-        for var in vars:
-            color[var]='white'
+        for node in self.model.nodes.keys():
+            color[node]='white'
         time = 0
         res = []
 
-        def dfs(u,time):
-            color[u]='grey'
+        def dfs(node,time):
+            color[node]='grey'
             time += 1
+            for adj in self.model.nodes[node]:
+                if color[adj] == 'white':
+                    time = dfs(adj,time)
+            color[node] = 'black'
+            time+=1
+            if node in vars:
+                res.append(node)
+            return time
 
+        for node in self.model.nodes.keys():
+            if color[node] == 'white':
+                time = dfs(node,time)
 
-        #TODO
-        return vars
-
+        return res
 
 def main_test():
     #TODO IMPLEMENT A GENERAL TEST FUNC
