@@ -9,14 +9,21 @@ import functools
 #TODO COMMENT IN DETAILS
 
 def cleanser(theClass=tuple,posOfParam=2):
-	def dec(func):
-		def afterDec(*args,**kw):
+	def wrapper(func):
+		def decFunc(*args,**kw):
 			args=list(args)
 			if type(args[posOfParam-1]) is not theClass:
 				args[posOfParam-1] = theClass([args[posOfParam-1],])
 			return func(*args)
-		return afterDec
-	return dec
+		return decFunc
+	return wrapper
+
+def printVals(func):
+    def decFunc(*args,**kw):
+        res = func(*args)
+        print ('Variables: {}\n Probability Distribution:\n{}\n'.format(res.scope,res.get_all_val()))
+        return res
+    return decFunc
 
 class Factor(object):
     '''
@@ -149,6 +156,8 @@ class VE(object):
         '''
         self.model = model
 
+    @printVals
+    @cleanser(list)
     def query(self,queries,evidences,testNodes=None,testFactors=None):
         #TODO DELETE TEST VARS AND CORRESPONDING STATEMENT
         '''
@@ -174,8 +183,6 @@ class VE(object):
         factor_with_evidence = self.sum_product(factors,varsToBeEliminated)
         factor_with_evidence.normalize()
 
-        print ('Query Variables: {}\n Probability Distribution:\n{}\n'.format(factor_with_evidence.scope,\
-                                                                              factor_with_evidence.get_all_val()))
         return factor_with_evidence
 
     @cleanser(list,3)
