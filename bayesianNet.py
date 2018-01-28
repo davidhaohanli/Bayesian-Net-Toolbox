@@ -12,12 +12,19 @@ def cleanser(theClass=tuple,posOfParam=2):
 	def wrapper(func):
 		def decFunc(*args,**kw):
 			args=list(args)
-			if type(args[posOfParam-1]) is not theClass:
-				args[posOfParam-1] = theClass([args[posOfParam-1],])
+			thisType = type(args[posOfParam-1])
+			if thisType is not theClass:
+				if thisType is str:
+					args[posOfParam-1] = theClass([args[posOfParam-1],])
+					return func(*args)
+				try:
+					thisType.__iter__
+					args[posOfParam-1] = theClass(args[posOfParam-1])
+				except:
+					args[posOfParam-1] = theClass([args[posOfParam-1],])
 			return func(*args)
 		return decFunc
 	return wrapper
-
 def printVals(func):
     def decFunc(*args,**kw):
         res = func(*args)
@@ -35,24 +42,23 @@ class Factor(object):
 
     '''
 
-    @cleanser()
-    def __init__(self,scope,varValsDict=None,default=None):
+    def __init__(self,scope:tuple,varValsDict=None,defaultVal=None):
         '''
         :param scope:  tuple of chars
         :param valsDistribution:  dict of distribution of factor values on the random variable grid
         '''
         self.scope = scope
-        self.var_assignment(default); # assign values to each random variables to generate a grid
+        self.var_assignment(defaultVal); # assign values to each random variables to generate a grid
         if varValsDict:
             self.add_all_vals(varValsDict)
 
-    def var_assignment(self,default=None):
+    def var_assignment(self,defaultVal=None):
         '''
         repeat scope size times to get the binary grid
         '''
         self.valDistirution = dict()
         for thisVarVals in itertools.product((True,False),repeat=len(self.scope)):
-            self.valDistirution[thisVarVals] = default
+            self.valDistirution[thisVarVals] = defaultVal
 
     def add_all_vals(self,varValsDict):
         '''
@@ -103,50 +109,60 @@ class Factor(object):
         else:
             print ('some values unassigned\n')
 
-class DirectedGraphNode(object):
-
-     def __init__(self, x):
-         '''
-         :param x: string for the node name
-         '''
-         self.parents = None #DGN object
-         self.name = x
-         self.children = None #DGN object
-
 class BayesianModel(object):
-    #TODO FINISH COMMENT
     '''
-    self.nodes is the nodes over the graphical network, list of
-    self.edges is the connection of all the nodes, list of
-    self.factors is the factors of variables, list of
+    self.nodes is the nodes over the graphical network, a dict of {str : list of str}   e.g. {'a':['b','c'],'b':[],'c':[],'d':['c']}
+    self.factors is the factors of variables, a list of factors
     '''
-    #TODO DESIGN OF NET
 
     def __init__(self,edges=None):
-        self.factors = []
-        self.nodes = []
-        #TODO
-        pass;
+        '''
+        :param edges: in for [('a','b'),('c')] where 'a' is predecessor of 'b'
+        '''
+        self.nodes = dict()
+        self.factors = list()
+        if edges:
+            self.add_edges(edges)
 
+    @cleanser(list)
     def add_edges(self,edges):
-        #TODO
-        pass
+        for edge in edges:
+            self.add_edge(edge)
 
-    def add_nodes(self,edges):
-        #TODO
-        pass;
+    @cleanser(tuple)
+    def add_edge(self,edge):
+        self.add_nodes(edge)
+        if len(edge) > 1:
+            self.nodes[edge[0]].append(edge[1])
 
-    def get_nodes(self):
-        #TODO
-        pass;
+    @cleanser(list)
+    def add_nodes(self,nodes):
+        for node in nodes:
+            if node not in self.nodes.keys():
+                self.nodes[node] = []
 
-    def check_node(self,nodeName):
-        #TODO
-        pass;
+    def add_factors(self,factors):
+        self.factors.extend(factors)
 
-    def add_cpd(self,mat,var,evidence):
-        #TODO
-        pass;
+    def add_cpd(self,node:str, mat:'list of list', evidences:list=None)->'convert to factor':
+
+        scope=[node]
+        if evidences:
+            scope+=evidences
+        else:
+            self.factors.append(Factor(scope,{(True,):mat[0][0],(False,):mat[1][0]}))
+            return
+        newFactor = Factor(tuple(scope))
+
+        for i,nodeVal in enumerate((True,False)):
+            for j,evidenceVals in enumerate(itertools.product((True,False),repeat=len(evidences))):
+                thisVarValDict = dict()
+                thisVarValDict[node] = nodeVal
+                for ind,var in enumerate(evidences):
+                    thisVarValDict[var] = evidenceVals[ind]
+                newFactor.add_val(tuple([thisVarValDict[var] for var in newFactor.scope]),mat[i][j])
+
+        self.factors.append(newFactor)
 
 class VE(object):
 
