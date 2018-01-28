@@ -8,8 +8,17 @@ import functools
 
 #TODO COMMENT IN DETAILS
 
+def cleanser(theClass=tuple,posOfParam=2):
+	def dec(func):
+		def afterDec(*args,**kw):
+			args=list(args)
+			if type(args[posOfParam-1]) is not theClass:
+				args[posOfParam-1] = theClass([args[posOfParam-1],])
+			return func(*args)
+		return afterDec
+	return dec
+
 class Factor(object):
-    #TODO REDESIGN FOR EVIDENCE
     '''
 
     self.valDistirution is the factor value distribution on the random variable assignemnt grid
@@ -19,13 +28,12 @@ class Factor(object):
 
     '''
 
+    @cleanser()
     def __init__(self,scope,varValsDict=None,default=None):
         '''
         :param scope:  tuple of chars
         :param valsDistribution:  dict of distribution of factor values on the random variable grid
         '''
-        if type(scope) is not tuple:
-            scope=(scope,)
         self.scope = scope
         self.var_assignment(default); # assign values to each random variables to generate a grid
         if varValsDict:
@@ -46,22 +54,20 @@ class Factor(object):
         for thisVarVals,val in varValsDict.items():
             self.add_val(thisVarVals,val)
 
+    @cleanser()
     def add_val(self,varVals,val):
         '''
         :param varVals: tuples,assignment to random variables
         :param val: value of the grid point
         '''
-        if type(varVals) is not tuple:
-            varVals=(varVals,)
         self.valDistirution[varVals] = val
 
+    @cleanser()
     def get_val(self,varVals):
         '''
         :param vars: tuples,assignment to query random variables
         :return: value of the grid point, None for unassigned yet
         '''
-        if type(varVals) is not tuple:
-            varVals=(varVals,)
         return self.valDistirution[varVals]
 
     def get_all_val(self):
@@ -101,14 +107,17 @@ class DirectedGraphNode(object):
          self.children = None #DGN object
 
 class BayesianModel(object):
+    #TODO FINISH COMMENT
     '''
-    self.nodes is the nodes over the graphical network
-    self.edges is the connection of all the nodes
-    self.factors is the factors of variables
+    self.nodes is the nodes over the graphical network, list of
+    self.edges is the connection of all the nodes, list of
+    self.factors is the factors of variables, list of
     '''
     #TODO DESIGN OF NET
 
-    def __init__(self,edges):
+    def __init__(self,edges=None):
+        self.factors = []
+        self.nodes = []
         #TODO
         pass;
 
@@ -169,27 +178,26 @@ class VE(object):
                                                                               factor_with_evidence.get_all_val()))
         return factor_with_evidence
 
+    @cleanser(list,3)
     def sum_product(self,factors,vars):
         '''
         :param factors: all factors
         :param vars: variables to be eliminated
         :return:
         '''
-        if type(vars) is not list:
-            vars = vars
         vars = self.topoSort(vars)
-        for var in vars:
+        while vars:
+            var = vars.pop()
             factors = self.sum_product_var(factors,var)
         return self.facs_multi(factors)
 
+    @cleanser(list)
     def sum_product_var(self,factors,var):
         '''
         :param factors: all factors
         :param var:  variable to be eliminated
         :return: set of all factors after VE of this variable
         '''
-        if type(factors) is not list:
-            factors = [factors]
         involvedFactors = []
         otherFactors = []
         for factor in factors:
@@ -200,6 +208,7 @@ class VE(object):
         newFactor = self.sum_ve(self.facs_multi(involvedFactors),var)
         return otherFactors+[newFactor]
 
+    @cleanser(list)
     def facs_multi(self,factors,pre=None,isReduceVersion=False):
         '''
         :param factors: list of Factors
@@ -207,9 +216,6 @@ class VE(object):
         :param isReduceVersion: use functools.reduce or my own implementation
         :return: new Factor
         '''
-        if type(factors) is not list:
-            factors = [factors]
-
         if isReduceVersion:
             return functools.reduce(self.two_facs_multi,factors)
 
@@ -266,14 +272,13 @@ class VE(object):
 
         return newFactor
 
+    @cleanser(list,3)
     def sum_ve(self,factor,vars):
         '''
         :param factor: factor containing variables
         :param vars: variables to be eliminated
         :return: new factor
         '''
-        if type (vars) is not list:
-            vars = [vars]
 
         newFactor = Factor(tuple(set(factor.scope) - set(vars)))
         for thisVarVals in newFactor.val_check():
@@ -299,9 +304,17 @@ class VE(object):
     def topoSort(self,vars):
         '''
         :param vars: variables to be ordered according to topological orders
-        :return:  ordered variables
+        :return:  ordered variables (reversed)
         '''
+        color=dict()
+        for var in vars:
+            color[var]='white'
+        time = 0
+        res = []
 
+        def dfs(u,time):
+            color[u]='grey'
+            time += 1
 
 
         #TODO
