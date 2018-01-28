@@ -156,8 +156,7 @@ class VE(object):
 
         varsToBeEliminated = []
         for var in allVars:
-            if var not in queries:
-                if var not in evidences.keys():
+            if var not in queries and var not in evidences.keys():
                     varsToBeEliminated.append(var)
 
         for i in range(len(factors)):
