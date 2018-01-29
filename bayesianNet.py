@@ -26,7 +26,7 @@ def cleanser(theClass=tuple,posOfParam=2):
 
 def printVals(func):
     def decFunc(*args,**kw):
-        res = func(*args)
+        res = func(*args,**kw)
         print ('Variables: {}\n Probability Distribution:\n{}\n'.format(res.scope,res.get_all_val()))
         return res
     return decFunc
