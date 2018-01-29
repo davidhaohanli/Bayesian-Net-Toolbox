@@ -349,5 +349,5 @@ def main_test():
     pass
 
 if __name__ == '__main__':
-    # TODO PRINT WORDS ON THE TEST MAIN
+    # TODO PRINT COMMENT ON THE TEST MAIN
     main_test()
