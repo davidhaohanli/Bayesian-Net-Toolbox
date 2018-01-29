@@ -14,13 +14,13 @@ def cleanser(theClass=tuple,posOfParam=2):
 			if thisType is not theClass:
 				if thisType is str:
 					args[posOfParam-1] = theClass([args[posOfParam-1],])
-					return func(*args)
+					return func(*args,**kw)
 				try:
 					thisType.__iter__
 					args[posOfParam-1] = theClass(args[posOfParam-1])
 				except:
 					args[posOfParam-1] = theClass([args[posOfParam-1],])
-			return func(*args)
+			return func(*args,**kw)
 		return decFunc
 	return wrapper
 
