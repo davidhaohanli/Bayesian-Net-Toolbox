@@ -23,6 +23,7 @@ def cleanser(theClass=tuple,posOfParam=2):
 			return func(*args)
 		return decFunc
 	return wrapper
+
 def printVals(func):
     def decFunc(*args,**kw):
         res = func(*args)
