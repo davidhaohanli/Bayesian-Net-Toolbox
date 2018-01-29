@@ -1,10 +1,8 @@
 #TODO COMMENT ABOUT THE TOOLBOX
 
-import numpy as np
-import pandas as pd
-import scipy as sp
 import itertools
 import functools
+import copy
 
 #TODO COMMENT IN DETAILS
 
@@ -144,7 +142,7 @@ class BayesianModel(object):
     def add_factors(self,factors):
         self.factors.extend(factors)
 
-    def add_cpd(self,node:str, mat:'list of list', evidences:list=None)->'convert to factor':
+    def add_cpd(self,node:str, mat:'2d list', evidences:list=None)->'convert to factor':
 
         scope=[node]
         if evidences:
@@ -180,7 +178,7 @@ class VE(object):
         :param evidences: dict of evidences       e.g. {'c':True,'d':False}
         :return: a factor with value distribution on query variables only (normalized)
         '''
-        factors = self.model.factors
+        factors = copy.deepcopy(self.model.factors)
         allVars = self.model.nodes.keys()
 
         varsToBeEliminated = []
