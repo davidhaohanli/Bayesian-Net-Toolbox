@@ -100,7 +100,7 @@ class Factor(object):
         return True
 
     def normalize(self):
-        if self.val_check() is not True:
+        if self.val_check() is True:
             normalizer = sum(self.valDistirution.values())
             for thisVarVals in self.valDistirution.keys():
                 self.valDistirution[thisVarVals]/=normalizer
