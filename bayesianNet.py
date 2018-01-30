@@ -74,7 +74,6 @@ class Factor(object):
         '''
         self.valDistirution[varVals] = val
 
-    @cleanser()
     def get_val(self,varVals):
         '''
         :param vars: tuples,assignment to query random variables
