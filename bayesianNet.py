@@ -139,6 +139,7 @@ class BayesianModel(object):
             if node not in self.nodes.keys():
                 self.nodes[node] = []
 
+    @cleanser(list)
     def add_factors(self,factors):
         self.factors.extend(factors)
 
