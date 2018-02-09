@@ -14,25 +14,6 @@ model.add_cpd('b',[[0.6],[0.9]])
 model.add_cpd('d',[[0.1,0.1,0.2,0.2],[0.3,0.3,0.5,0.5]],['c','b'])
 gibbs_sampler = Gibbs_sampler(model)
 
-def facs_multi_test():
-
-    res = ve.facs_multi([fac1, fac2, fac3])
-    '''
-    ############### NOT ('a','b','c','d') ##################
-    res.scope = ('b','c','a','d')
-
-    res.get_all_val()
-    Out[2]:
-    {(False, False, False, False): 0.225,       ---- checked
-      ...
-     (True, False, True, False): 0.03,          ---- checked
-      ...
-    }
-
-     '''
-
-    pass
-
 def VE_test():
 
     res = gibbs_sampler.query(['a','d'],{'b':True})
