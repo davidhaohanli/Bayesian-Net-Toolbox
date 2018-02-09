@@ -3,6 +3,10 @@
 import itertools
 import functools
 import copy
+import numpy as np
+from abc import abstractmethod
+
+np.random.seed(1784)
 
 #TODO COMMENT IN DETAILS
 
@@ -24,17 +28,10 @@ def cleanser(theClass=tuple,posOfParam=2):
 		return decFunc
 	return wrapper
 
-def printVals(func):
-    def decFunc(*args,**kw):
-        res = func(*args,**kw)
-        print ('Variables: {}\n Probability Distribution:\n{}\n'.format(res.scope,res.get_all_val()))
-        return res
-    return decFunc
-
 class Factor(object):
     '''
 
-    self.valDistirution is the factor value distribution on the random variable assignemnt grid
+    self.valDistribution is the factor value distribution on the random variable assignemnt grid
     in form as:
     {(True,True,True):0.1,(True,True,False):0.9,(True,False,True):None,...,(False,False,False):1.6}
     * None for value pending to be determined
@@ -55,9 +52,9 @@ class Factor(object):
         '''
         repeat scope size times to get the binary grid
         '''
-        self.valDistirution = dict()
+        self.valDistribution = dict()
         for thisVarVals in itertools.product((True,False),repeat=len(self.scope)):
-            self.valDistirution[thisVarVals] = defaultVal
+            self.valDistribution[thisVarVals] = defaultVal
 
     def add_all_vals(self,varValsDict):
         '''
@@ -72,27 +69,27 @@ class Factor(object):
         :param varVals: tuples,assignment to random variables
         :param val: value of the grid point
         '''
-        self.valDistirution[varVals] = val
+        self.valDistribution[varVals] = val
 
     def get_val(self,varVals):
         '''
         :param vars: tuples,assignment to query random variables
         :return: value of the grid point, None for unassigned yet
         '''
-        return self.valDistirution[varVals]
+        return self.valDistribution[varVals]
 
     def get_all_val(self):
         '''
         :return: self.valDistribution
         '''
-        return self.valDistirution
+        return self.valDistribution
 
     def val_check(self):
         '''
         :return: points on the grid with value unassigned. if all assigned, return True
         '''
         res=[]
-        for thisVarVals,val in self.valDistirution.items():
+        for thisVarVals,val in self.valDistribution.items():
             if val is None:
                 res.append(thisVarVals)
         if res:
@@ -101,9 +98,9 @@ class Factor(object):
 
     def normalize(self):
         if self.val_check() is True:
-            normalizer = sum(self.valDistirution.values())
-            for thisVarVals in self.valDistirution.keys():
-                self.valDistirution[thisVarVals]/=normalizer
+            normalizer = sum(self.valDistribution.values())
+            for thisVarVals in self.valDistribution.keys():
+                self.valDistribution[thisVarVals]/=normalizer
         else:
             print ('some values unassigned\n')
 
@@ -163,17 +160,74 @@ class BayesianModel(object):
 
         self.factors.append(newFactor)
 
-class VE(object):
+class Inference(object):
+    #TODO abstract the class
+    #TODO collect the common methods
 
     def __init__(self,model):
         '''
-        :param model: a BayesianModel
+        :param model: A Bayesian Model
         '''
         self.model = model
 
-    @printVals
+    @abstractmethod
+    def query(self,queries,evidences):
+        raise NotImplementedError()
+
+    def giveEvidence(self,factor,evidences)->Factor:
+        '''
+        :param factor: factor containing evidence variables
+        :param evidences: dict of evidences       e.g. {'c':True,'d':False}
+        :return: new factor
+        '''
+        newFactor = Factor(tuple(set(factor.scope)-set(evidences.keys())))
+        for thisVarVals in newFactor.val_check():
+
+            # dict form : {'a':True}
+            thisVarValsDict = dict()
+            for i, var in enumerate(newFactor.scope):
+                thisVarValsDict[var] = thisVarVals[i]
+            # merge thisVarValsDict (in newFactor) and evidences
+            thisVarValsDict.update(evidences)
+
+            newFactor.add_val(thisVarVals,factor.get_val(tuple([thisVarValsDict[var] for var in factor.scope])))
+
+        return newFactor
+
+
+    def topoSort(self,vars):
+        '''
+        :param vars: variables to be ordered according to topological orders
+        :return:  ordered variables (reversed)
+        '''
+        color=dict()
+        for node in self.model.nodes.keys():
+            color[node]='white'
+        time = 0
+        res = []
+
+        def dfs(node,time):
+            color[node]='grey'
+            time += 1
+            for adj in self.model.nodes[node]:
+                if color[adj] == 'white':
+                    time = dfs(adj,time)
+            color[node] = 'black'
+            time+=1
+            if node in vars:
+                res.append(node)
+            return time
+
+        for node in self.model.nodes.keys():
+            if color[node] == 'white':
+                time = dfs(node,time)
+
+        return res
+
+class VE(Inference):
+
     @cleanser(list)
-    def query(self,queries:list,evidences:dict)->Factor:
+    def query(self,queries:list,evidences:dict,printTrigger:bool=True)->Factor:
         '''
         :param queries: list of joint conditional probabilities pending to query      e.g. ['a','b']
         :param evidences: dict of evidences       e.g. {'c':True,'d':False}
@@ -190,10 +244,14 @@ class VE(object):
         for i in range(len(factors)):
             factors[i] = self.giveEvidence(factors[i],evidences)
 
-        factor_with_evidence = self.sum_product(factors,varsToBeEliminated)
-        factor_with_evidence.normalize()
+        cpd_factor = self.sum_product(factors,varsToBeEliminated)
+        cpd_factor.normalize()
 
-        return factor_with_evidence
+        if printTrigger:
+            print('Variables: {}\n Probability Distribution:\n{}\n'.format(cpd_factor.scope, \
+                                                                           cpd_factor.get_all_val()))
+
+        return cpd_factor
 
     def sum_product(self,factors,vars)->Factor:
         '''
@@ -266,26 +324,6 @@ class VE(object):
 
         return newFactor
 
-    def giveEvidence(self,factor,evidences)->Factor:
-        '''
-        :param factor: factor containing evidence variables
-        :param evidences: dict of evidences       e.g. {'c':True,'d':False}
-        :return: new factor
-        '''
-        newFactor = Factor(tuple(set(factor.scope)-set(evidences.keys())))
-        for thisVarVals in newFactor.val_check():
-
-            # dict form : {'a':True}
-            thisVarValsDict = dict()
-            for i, var in enumerate(newFactor.scope):
-                thisVarValsDict[var] = thisVarVals[i]
-            # merge thisVarValsDict (in newFactor) and evidences
-            thisVarValsDict.update(evidences)
-
-            newFactor.add_val(thisVarVals,factor.get_val(tuple([thisVarValsDict[var] for var in factor.scope])))
-
-        return newFactor
-
     @cleanser(list,3)
     def sum_ve(self,factor,vars)->Factor:
         '''
@@ -315,34 +353,75 @@ class VE(object):
 
         return newFactor
 
-    def topoSort(self,vars):
+class Gibbs_sampler(Inference):
+
+    @cleanser(list)
+    def query(self,queries:list,evidences:dict,steps = 100, printTrigger:bool=True)->Factor:
         '''
-        :param vars: variables to be ordered according to topological orders
-        :return:  ordered variables (reversed)
+        :param queries: list of joint conditional probabilities pending to query      e.g. ['a','b']
+        :param evidences: dict of evidences       e.g. {'c':True,'d':False}
+        :return: a probability distribution, Factor
         '''
-        color=dict()
-        for node in self.model.nodes.keys():
-            color[node]='white'
-        time = 0
-        res = []
+        allVars = self.model.nodes.keys()
 
-        def dfs(node,time):
-            color[node]='grey'
-            time += 1
-            for adj in self.model.nodes[node]:
-                if color[adj] == 'white':
-                    time = dfs(adj,time)
-            color[node] = 'black'
-            time+=1
-            if node in vars:
-                res.append(node)
-            return time
+        varsToBeSampled = []
+        for var in allVars:
+            if var not in evidences.keys():
+                varsToBeSampled.append(var)
 
-        for node in self.model.nodes.keys():
-            if color[node] == 'white':
-                time = dfs(node,time)
+        vars = self.topoSort(varsToBeSampled)[::-1]
 
-        return res
+        cpd = self.gibbs(vars,queries,evidences,steps)
+
+        if printTrigger:
+            print('Variables: {}\n Probability Distribution:\n{}\n'.format(cpd.scope, \
+                                                                           cpd.get_all_val()))
+        return cpd
+
+    def gibbs(self,vars,queries,evidences,steps)->Factor:
+        '''
+        :param factors: all factors
+        :param vars: sorted vars to be sampled
+        :param steps: number of sample sets needed
+        :return: list of dictionaries
+        '''
+        samplePool = {}
+        newFactor = Factor(tuple(queries),defaultVal=0)
+        for t in steps:
+            thisVarValDict=dict()
+            for var in vars:
+                newSampleVal,samplePool = self.sample(var,samplePool,evidences)
+                if var in queries:
+                    thisVarValDict[var] = newSampleVal
+                thisVarVals = tuple([thisVarValDict[var] for var in newFactor.scope])
+                newFactor.add_val(thisVarVals,newFactor.get_val(thisVarVals)+1)
+        newFactor.normalize()
+        return newFactor
+
+    def sample(self,var,samplePool:dict,evidences)->'bool and dict':
+        '''
+        :param samplePool: dict of samples
+        :param factors: all factors from model
+        :param var: variable to be sampled
+        :return: the bool value of the sampled variable and the updated dictionary of samples
+        '''
+        samplePool.pop(var,None)
+
+        fullEvidence = {**samplePool,**evidences}
+
+        cpd = VE(self.model).query(var,fullEvidence,False)
+
+        particle = np.random.rand()
+
+        if particle <= cpd.get_val((True,)):
+            newSample = True
+        else:
+            newSample = False
+
+        samplePool[var] = newSample
+
+        return newSample,samplePool
+
 
 def main_test():
     #TODO IMPLEMENT A GENERAL TEST FUNC
