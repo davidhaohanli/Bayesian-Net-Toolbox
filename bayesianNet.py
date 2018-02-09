@@ -356,7 +356,7 @@ class VE(Inference):
 class Gibbs_sampler(Inference):
 
     @cleanser(list)
-    def query(self,queries:list,evidences:dict,steps = 100, printTrigger:bool=True)->Factor:
+    def query(self,queries:list,evidences:dict,steps = 1000, printTrigger:bool=True)->Factor:
         '''
         :param queries: list of joint conditional probabilities pending to query      e.g. ['a','b']
         :param evidences: dict of evidences       e.g. {'c':True,'d':False}
@@ -369,9 +369,9 @@ class Gibbs_sampler(Inference):
             if var not in evidences.keys():
                 varsToBeSampled.append(var)
 
-        vars = self.topoSort(varsToBeSampled)[::-1]
+        varsToBeSampled = self.topoSort(varsToBeSampled)[::-1]
 
-        cpd = self.gibbs(vars,queries,evidences,steps)
+        cpd = self.gibbs(varsToBeSampled,queries,evidences,steps)
 
         if printTrigger:
             print('Variables: {}\n Probability Distribution:\n{}\n'.format(cpd.scope, \
@@ -387,14 +387,14 @@ class Gibbs_sampler(Inference):
         '''
         samplePool = {}
         newFactor = Factor(tuple(queries),defaultVal=0)
-        for t in steps:
+        for t in range(steps):
             thisVarValDict=dict()
             for var in vars:
                 newSampleVal,samplePool = self.sample(var,samplePool,evidences)
                 if var in queries:
                     thisVarValDict[var] = newSampleVal
-                thisVarVals = tuple([thisVarValDict[var] for var in newFactor.scope])
-                newFactor.add_val(thisVarVals,newFactor.get_val(thisVarVals)+1)
+            thisVarVals = tuple([thisVarValDict[var] for var in newFactor.scope])
+            newFactor.add_val(thisVarVals,newFactor.get_val(thisVarVals)+1)
         newFactor.normalize()
         return newFactor
 
