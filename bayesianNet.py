@@ -11,10 +11,10 @@ np.random.seed(1784)
 
 #TODO COMMENT IN DETAILS
 
-def plot(pointsA:list,pointB:int):
+def plot(pointsA:list,exactFactorForStepShow):
     plt.figure(figsize=(20, 5))
     plt.plot(pointsA)
-    plt.plot([pointB]*len(pointsA), 'r--')
+    plt.plot([exactFactorForStepShow.get_val((True,))]*len(pointsA), 'r--')
     plt.xlabel('Sample Size')
     plt.ylabel('Probability for True')
     plt.legend(['Gibbs Sampling', 'Variable Elimination'])
@@ -363,7 +363,7 @@ class VE(Inference):
 
 class GibbsSampler(Inference):
 
-    def __init__(self,model,step=1000,burnInCoefficient=0.3,thinningGap=5):
+    def __init__(self,model,step = 1000, burnInCoefficient = 0.3, thinningGap = 5):
         super().__init__(model)
         self.hyperParamSet({'step':step,'burnInCoefficient':burnInCoefficient,'thinningGap':thinningGap})
         self.initStepCollector()
@@ -371,19 +371,25 @@ class GibbsSampler(Inference):
     def initStepCollector(self):
         self.stepVals=[]
 
-    def hyperParamSet(self,hyperParams={'step':1000,'burnInCoefficient':0.3,'thinningGap':5}):
+    def hyperParamSet(self,hyperParams = {'step':1000,'burnInCoefficient':0.3,'thinningGap':5}):
         '''
         :param step: sample size
         :param burnInCoefficient: proportion of starting samples to be dropped
         :param thinningGap: selection gap for i.i.d
         '''
+
         if hyperParams.get('step') is not None:
             self.step = hyperParams['step']
-        self.burnInNum = self.step * hyperParams['burnInCoefficient']
-        self.thinningGap = hyperParams['thinningGap']
+
+        if hyperParams.get('step') is not None:
+            self.burnInNum = self.step * hyperParams['burnInCoefficient']
+
+        if hyperParams.get('step') is not None:
+            self.thinningGap = hyperParams['thinningGap']
 
     @cleanser(list)
-    def query(self,queries:list,evidences:dict=dict(),printTrigger:bool=True,trueValForStepShow:float=None)->Factor:
+    def query(self,queries:list,evidences:dict=dict(),\
+              printTrigger:bool=True,collectTrigger:bool=False,exactFactorForStepShow:Factor=None)->Factor:
         '''
         :param queries: list of joint conditional probabilities pending to query      e.g. ['a','b']
         :param evidences: dict of evidences       e.g. {'c':True,'d':False}
@@ -391,20 +397,17 @@ class GibbsSampler(Inference):
         '''
         varsToBeSampled = self.topoSort(set(self.model.nodes.keys()) - set(evidences.keys()))[::-1]
 
-        if trueValForStepShow is not None:
-            self.initStepCollector()
+        cpd = self.gibbs(varsToBeSampled,queries,evidences,collectTrigger)
 
-        cpd = self.gibbs(varsToBeSampled,queries,evidences,trueValForStepShow)
-
-        if trueValForStepShow is not None:
-            plot(self.stepVals,trueValForStepShow)
+        if exactFactorForStepShow is not None:
+            plot(self.stepVals,exactFactorForStepShow)
 
         if printTrigger:
             print('Variables: {}\n Probability Distribution:\n{}\n'.format(cpd.scope, \
                                                                            cpd.get_all_val()))
         return cpd
 
-    def gibbs(self,vars:list,queries:list,evidences:dict,trueValForStepShow:int=None)->Factor:
+    def gibbs(self,vars:list,queries:list,evidences:dict,collectTrigger:bool=False)->Factor:
         '''
         :param factors: all factors
         :param vars: sorted vars to be sampled
@@ -415,7 +418,8 @@ class GibbsSampler(Inference):
 
         newFactor = Factor(tuple(queries),defaultVal=0)
 
-        if trueValForStepShow is not None:
+        if collectTrigger is not None:
+            self.initStepCollector()
             tempFactor = Factor(tuple(queries),defaultVal=0)
 
         for t in range(self.step):
@@ -429,7 +433,7 @@ class GibbsSampler(Inference):
 
             thisVarVals = tuple([thisVarValDict[var] for var in newFactor.scope])
 
-            if trueValForStepShow is not None:
+            if collectTrigger is not None:
                 tempFactor.add_val(thisVarVals,tempFactor.get_val(thisVarVals) + 1)
                 self.stepCollect(tempFactor)
 
@@ -472,6 +476,12 @@ class GibbsSampler(Inference):
 
         self.stepVals.append(theFactor.get_val((True,)))
 
+    def get_steps_vals(self):
+        '''
+        :return: all steps values
+        '''
+        return  self.stepVals
+
 class GridSearchTuner(object):
 
     def __init__(self,model:GibbsSampler,**hyperParamCandidates):
@@ -479,24 +489,29 @@ class GridSearchTuner(object):
         :param model: of which hyper-parameters pending to be tuned
         :param hyperParams: the candidates of hyper-parameters, concatenated in a dictionary   e.g.{}
         '''
-        self.model = model
+        self.bestModel = model
         self.hyperParamCandidates = hyperParamCandidates
 
-    def tune(self,queries:list,targets:Factor,evidences:dict=dict()):
+    def tune(self,queries:list,targets:Factor,evidences:dict=dict(),printTrigger=True,plotTrigger=False):
         '''
         :param queries: same as model.query
         :param evidences: same as model.query
         :param targets: real values for query variable probability distribution, Factor
         :return: best model
         '''
+        # exhaustive search for every possible combination of hyper-parameter values, recursive
+
         def search(hyperParamKeys:list,hyperParamVals:dict,bestHyperParamValsAndError:list)->list:
 
             if not hyperParamKeys:
-                self.model.hyperParamSet(hyperParamVals)
-                cpdFactor = self.model.query(queries,evidences,False)
+                self.bestModel.hyperParamSet(hyperParamVals)
+                cpdFactor = self.bestModel.query(queries,evidences,printTrigger=False,collectTrigger=plotTrigger)
                 error = abs(cpdFactor.get_val((True,))-targets.get_val((True,)))
                 if error < bestHyperParamValsAndError[1]:
                     bestHyperParamValsAndError = [hyperParamVals,error]
+                    if plotTrigger:
+                        self.stepVals = self.bestModel.stepVals
+                        self.bestCPD = cpdFactor
                 return bestHyperParamValsAndError
 
             hyperParamKey = hyperParamKeys[0]
@@ -506,9 +521,24 @@ class GridSearchTuner(object):
                                                     bestHyperParamValsAndError)
             return bestHyperParamValsAndError
 
-        bestHyperParamValsAndError = search(list(self.hyperParamCandidates.keys()),dict(),[dict(),float('inf')])
-        self.model.hyperParamSet(bestHyperParamValsAndError[0])
-        return self.model
+        self.bestHyperParam, self.bestScore = search(list(self.hyperParamCandidates.keys()), dict(), [dict(),float('inf')])
+
+        if printTrigger:
+            print('''
+            The optimal hyper-parameters are:
+            {}
+            The corresponding error is:
+            {}
+            '''.format(self.bestHyperParam,self.bestScore))
+
+        if plotTrigger:
+            plot(self.stepVals, targets)
+            print('Variables: {}\n Probability Distribution:\n{}\n'.format(self.bestCPD.scope,\
+                                                                           self.bestCPD.get_all_val()))
+
+        self.bestModel.hyperParamSet(self.bestHyperParam)
+
+        return self.bestModel
 
 def main_test():
     #TODO IMPLEMENT A GENERAL TEST FUNC
