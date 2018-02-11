@@ -12,11 +12,14 @@ model = BayesianModel([('a','b'),('a','d'),('c','d')])
 model.add_cpd('a',[[0.1,0.2],[0.3,0.5]],['b'])
 model.add_cpd('b',[[0.6],[0.9]])
 model.add_cpd('d',[[0.1,0.1,0.2,0.2],[0.3,0.3,0.5,0.5]],['c','b'])
-gibbs_sampler = Gibbs_sampler(model)
+gibbs_sampler = GibbsSampler(model,step=100,burnInCoefficient=0,thinningGap=1)
+ve = VE(model)
 
 def VE_test():
 
-    res = gibbs_sampler.query(['a','d'],{'b':True})
+    resVE = ve.query(['a'],{'b':True})
+
+    resGibbs = gibbs_sampler.query(['a'])
 
 if __name__ == '__main__':
     while 1:

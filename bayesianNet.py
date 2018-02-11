@@ -5,10 +5,20 @@ import functools
 import copy
 import numpy as np
 from abc import abstractmethod
+from matplotlib import pyplot as plt
 
 np.random.seed(1784)
 
 #TODO COMMENT IN DETAILS
+
+def plot(pointsA:list,pointB:int):
+    plt.figure(figsize=(20, 5))
+    plt.plot(pointsA)
+    plt.plot([pointB]*len(pointsA), 'r--')
+    plt.xlabel('Sample Size')
+    plt.ylabel('Probability for True')
+    plt.legend(['Gibbs Sampling', 'Variable Elimination'])
+    plt.show()
 
 def cleanser(theClass=tuple,posOfParam=2):
 	def wrapper(func):
@@ -174,32 +184,14 @@ class Inference(object):
     def query(self,queries,evidences):
         raise NotImplementedError()
 
-    def giveEvidence(self,factor,evidences)->Factor:
-        '''
-        :param factor: factor containing evidence variables
-        :param evidences: dict of evidences       e.g. {'c':True,'d':False}
-        :return: new factor
-        '''
-        newFactor = Factor(tuple(set(factor.scope)-set(evidences.keys())))
-        for thisVarVals in newFactor.val_check():
-
-            # dict form : {'a':True}
-            thisVarValsDict = dict()
-            for i, var in enumerate(newFactor.scope):
-                thisVarValsDict[var] = thisVarVals[i]
-            # merge thisVarValsDict (in newFactor) and evidences
-            thisVarValsDict.update(evidences)
-
-            newFactor.add_val(thisVarVals,factor.get_val(tuple([thisVarValsDict[var] for var in factor.scope])))
-
-        return newFactor
-
-
-    def topoSort(self,vars):
+    def topoSort(self,vars=None):
         '''
         :param vars: variables to be ordered according to topological orders
         :return:  ordered variables (reversed)
         '''
+        if vars is None:
+            vars = list(self.model.nodes.keys())
+
         color=dict()
         for node in self.model.nodes.keys():
             color[node]='white'
@@ -227,19 +219,15 @@ class Inference(object):
 class VE(Inference):
 
     @cleanser(list)
-    def query(self,queries:list,evidences:dict,printTrigger:bool=True)->Factor:
+    def query(self,queries:list,evidences:dict=dict(),printTrigger:bool=True)->Factor:
         '''
         :param queries: list of joint conditional probabilities pending to query      e.g. ['a','b']
         :param evidences: dict of evidences       e.g. {'c':True,'d':False}
         :return: a factor with value distribution on query variables only (normalized)
         '''
         factors = copy.deepcopy(self.model.factors)
-        allVars = self.model.nodes.keys()
 
-        varsToBeEliminated = []
-        for var in allVars:
-            if var not in queries and var not in evidences.keys():
-                    varsToBeEliminated.append(var)
+        varsToBeEliminated = set(self.model.nodes.keys())-set(queries)-set(evidences.keys())
 
         for i in range(len(factors)):
             factors[i] = self.giveEvidence(factors[i],evidences)
@@ -353,75 +341,174 @@ class VE(Inference):
 
         return newFactor
 
-class Gibbs_sampler(Inference):
+    def giveEvidence(self,factor,evidences)->Factor:
+        '''
+        :param factor: factor containing evidence variables
+        :param evidences: dict of evidences       e.g. {'c':True,'d':False}
+        :return: new factor
+        '''
+        newFactor = Factor(tuple(set(factor.scope)-set(evidences.keys())))
+        for thisVarVals in newFactor.val_check():
+
+            # dict form : {'a':True}
+            thisVarValsDict = dict()
+            for i, var in enumerate(newFactor.scope):
+                thisVarValsDict[var] = thisVarVals[i]
+            # merge thisVarValsDict (in newFactor) and evidences
+            thisVarValsDict.update(evidences)
+
+            newFactor.add_val(thisVarVals,factor.get_val(tuple([thisVarValsDict[var] for var in factor.scope])))
+
+        return newFactor
+
+class GibbsSampler(Inference):
+
+    def __init__(self,model,step=1000,burnInCoefficient=0.3,thinningGap=5):
+        super().__init__(model)
+        self.hyperParamSet(step,burnInCoefficient,thinningGap)
+        self.initStepCollector()
+
+    def initStepCollector(self):
+        self.stepVals=[]
+
+    def hyperParamSet(self,step:int=None,burnInCoefficient:float=0.3,thinningGap:int=5):
+        '''
+        :param step: sample size
+        :param burnInCoefficient: proportion of starting samples to be dropped
+        :param thinningGap: selection gap for i.i.d
+        '''
+        if int is not None:
+            self.step = step
+        self.burnInNum = self.step * burnInCoefficient
+        self.thinningGap = thinningGap
 
     @cleanser(list)
-    def query(self,queries:list,evidences:dict,steps = 1000, printTrigger:bool=True)->Factor:
+    def query(self,queries:list,evidences:dict=dict(),printTrigger:bool=True,trueValForStepShow:float=None)->Factor:
         '''
         :param queries: list of joint conditional probabilities pending to query      e.g. ['a','b']
         :param evidences: dict of evidences       e.g. {'c':True,'d':False}
         :return: a probability distribution, Factor
         '''
-        allVars = self.model.nodes.keys()
+        varsToBeSampled = self.topoSort(set(self.model.nodes.keys()) - set(evidences.keys()))[::-1]
 
-        varsToBeSampled = []
-        for var in allVars:
-            if var not in evidences.keys():
-                varsToBeSampled.append(var)
+        if trueValForStepShow is not None:
+            self.initStepCollector()
 
-        varsToBeSampled = self.topoSort(varsToBeSampled)[::-1]
+        cpd = self.gibbs(varsToBeSampled,queries,evidences,trueValForStepShow)
 
-        cpd = self.gibbs(varsToBeSampled,queries,evidences,steps)
+        if trueValForStepShow is not None:
+            plot(self.stepVals,trueValForStepShow)
 
         if printTrigger:
             print('Variables: {}\n Probability Distribution:\n{}\n'.format(cpd.scope, \
                                                                            cpd.get_all_val()))
         return cpd
 
-    def gibbs(self,vars,queries,evidences,steps)->Factor:
+    def gibbs(self,vars:list,queries:list,evidences:dict,trueValForStepShow:int=None)->Factor:
         '''
         :param factors: all factors
         :param vars: sorted vars to be sampled
         :param steps: number of sample sets needed
-        :return: list of dictionaries
+        :return: desired cpd factor
         '''
         samplePool = {}
+
         newFactor = Factor(tuple(queries),defaultVal=0)
-        for t in range(steps):
+
+        if trueValForStepShow is not None:
+            tempFactor = Factor(tuple(queries),defaultVal=0)
+
+        for t in range(self.step):
+
             thisVarValDict=dict()
+
             for var in vars:
-                newSampleVal,samplePool = self.sample(var,samplePool,evidences)
+                samplePool = self.sample(var,samplePool,evidences)
                 if var in queries:
-                    thisVarValDict[var] = newSampleVal
+                    thisVarValDict[var] = samplePool[var]
+
             thisVarVals = tuple([thisVarValDict[var] for var in newFactor.scope])
-            newFactor.add_val(thisVarVals,newFactor.get_val(thisVarVals)+1)
+
+            if trueValForStepShow is not None:
+                tempFactor.add_val(thisVarVals,tempFactor.get_val(thisVarVals) + 1)
+                self.stepCollect(tempFactor)
+
+            if t >= self.burnInNum and not t % self.thinningGap:
+                newFactor.add_val(thisVarVals,newFactor.get_val(thisVarVals)+1)
+
         newFactor.normalize()
+
         return newFactor
 
-    def sample(self,var,samplePool:dict,evidences)->'bool and dict':
+    def sample(self,var:str,samplePool:dict,evidences:dict)->dict:
         '''
         :param samplePool: dict of samples
         :param factors: all factors from model
         :param var: variable to be sampled
-        :return: the bool value of the sampled variable and the updated dictionary of samples
+        :return: the updated dictionary of samples
         '''
         samplePool.pop(var,None)
 
         fullEvidence = {**samplePool,**evidences}
 
-        cpd = VE(self.model).query(var,fullEvidence,False)
+        cpd = VE(self.model).query([var],fullEvidence,False)
 
         particle = np.random.rand()
 
         if particle <= cpd.get_val((True,)):
-            newSample = True
+            newSampleVal = True
         else:
-            newSample = False
+            newSampleVal = False
 
-        samplePool[var] = newSample
+        samplePool[var] = newSampleVal
 
-        return newSample,samplePool
+        return samplePool
 
+    def stepCollect(self,theFactor:Factor):
+
+        theFactor = copy.deepcopy(theFactor)
+
+        theFactor.normalize()
+
+        self.stepVals.append(theFactor.get_val((True,)))
+
+class GridSearchTuner(object):
+
+    def __init__(self,model:GibbsSampler,**hyperParamCandidates):
+        '''
+        :param model: of which hyper-parameters pending to be tuned
+        :param hyperParams: the candidates of hyper-parameters, concatenated in a dictionary   e.g.{}
+        '''
+        self.model = model
+        self.hyperParamCandidates = hyperParamCandidates
+
+    def tune(self,queries:list,evidences:dict,targets:dict):
+        '''
+        :param queries: same as model.query
+        :param evidences: same as model.query
+        :param targets: real values for query variable probability distribution, dictionary
+        :return: best model
+        '''
+        def search(hyperParamKeys:list,hyperParamVals:dict,bestHyperParamValsAndError:list)->list:
+
+            if not hyperParamKeys:
+                self.model.hyperParamSet(**hyperParamVals)
+                cpdFactor = self.model.query(queries,evidences,False)
+                error = abs(cpdFactor.get_val((True,))-targets[True])
+                if error < bestHyperParamValsAndError[1]:
+                    bestHyperParamValsAndError = [hyperParamVals,error]
+                return bestHyperParamValsAndError
+
+            hyperParamKey = hyperParamKeys[0]
+
+            for thisKeyVal in self.hyperParamCandidates[hyperParamKey]:
+                bestHyperParamValsAndError = search(hyperParamKeys[1:],{**hyperParamVals,hyperParamKey:thisKeyVal},\
+                                                    bestHyperParamValsAndError)
+            return bestHyperParamValsAndError
+
+        bestHyperParamValsAndError = search(list(self.hyperParamCandidates.keys()),dict(),[dict(),float('inf')])
+        self.model.hyperParamSet(bestHyperParamValsAndError[0])
+        return self.model
 
 def main_test():
     #TODO IMPLEMENT A GENERAL TEST FUNC
