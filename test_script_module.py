@@ -14,17 +14,28 @@ model.add_cpd('b',[[0.6],[0.9]])
 model.add_cpd('d',[[0.1,0.1,0.2,0.2],[0.3,0.3,0.5,0.5]],['c','b'])
 gibbs_sampler = GibbsSampler(model,step=100,burnInCoefficient=0,thinningGap=1)
 ve = VE(model)
+grid_search_tuner = GridSearchTuner(gibbs_sampler,burnInCoefficient=np.arange(0,0.3,0.1),thinningGap=np.arange(1,4))
 
 def VE_test():
 
-    resVE = ve.query(['a'],{'b':True})
+    resVE = ve.query(['a'])
 
     resGibbs = gibbs_sampler.query(['a'])
+
+def GridSearchTest():
+
+    resVE = ve.query(['a'])
+
+    bestModel = grid_search_tuner.tune(['a'],resVE)
+
+    resGibbs = bestModel.query(['a'])
+
+    pass
 
 if __name__ == '__main__':
     while 1:
 
-        functions={'VE':VE_test,'q':exit}
+        functions={'VE':VE_test,'GS':GridSearchTest,'q':exit}
 
         functions[input('Please input the test function name {}, q for exit: '.format(list(functions.keys())))]()
 

@@ -365,22 +365,22 @@ class GibbsSampler(Inference):
 
     def __init__(self,model,step=1000,burnInCoefficient=0.3,thinningGap=5):
         super().__init__(model)
-        self.hyperParamSet(step,burnInCoefficient,thinningGap)
+        self.hyperParamSet({'step':step,'burnInCoefficient':burnInCoefficient,'thinningGap':thinningGap})
         self.initStepCollector()
 
     def initStepCollector(self):
         self.stepVals=[]
 
-    def hyperParamSet(self,step:int=None,burnInCoefficient:float=0.3,thinningGap:int=5):
+    def hyperParamSet(self,hyperParams={'step':1000,'burnInCoefficient':0.3,'thinningGap':5}):
         '''
         :param step: sample size
         :param burnInCoefficient: proportion of starting samples to be dropped
         :param thinningGap: selection gap for i.i.d
         '''
-        if int is not None:
-            self.step = step
-        self.burnInNum = self.step * burnInCoefficient
-        self.thinningGap = thinningGap
+        if hyperParams.get('step') is not None:
+            self.step = hyperParams['step']
+        self.burnInNum = self.step * hyperParams['burnInCoefficient']
+        self.thinningGap = hyperParams['thinningGap']
 
     @cleanser(list)
     def query(self,queries:list,evidences:dict=dict(),printTrigger:bool=True,trueValForStepShow:float=None)->Factor:
@@ -482,19 +482,19 @@ class GridSearchTuner(object):
         self.model = model
         self.hyperParamCandidates = hyperParamCandidates
 
-    def tune(self,queries:list,evidences:dict,targets:dict):
+    def tune(self,queries:list,targets:Factor,evidences:dict=dict()):
         '''
         :param queries: same as model.query
         :param evidences: same as model.query
-        :param targets: real values for query variable probability distribution, dictionary
+        :param targets: real values for query variable probability distribution, Factor
         :return: best model
         '''
         def search(hyperParamKeys:list,hyperParamVals:dict,bestHyperParamValsAndError:list)->list:
 
             if not hyperParamKeys:
-                self.model.hyperParamSet(**hyperParamVals)
+                self.model.hyperParamSet(hyperParamVals)
                 cpdFactor = self.model.query(queries,evidences,False)
-                error = abs(cpdFactor.get_val((True,))-targets[True])
+                error = abs(cpdFactor.get_val((True,))-targets.get_val((True,)))
                 if error < bestHyperParamValsAndError[1]:
                     bestHyperParamValsAndError = [hyperParamVals,error]
                 return bestHyperParamValsAndError
