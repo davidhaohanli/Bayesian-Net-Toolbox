@@ -511,7 +511,7 @@ class GridSearchTuner(object):
             if not hyperParamKeys:
                 cpdFactor = self.tuneCPD(queries,stepSamples,hyperParamVals)
                 error = abs(cpdFactor.get_val((True,))-targets.get_val((True,)))
-                if error < bestHyperParamValsAndError[1]:
+                if error <= bestHyperParamValsAndError[1]:
                     bestHyperParamValsAndError = [hyperParamVals,error]
                     if plotTrigger:
                         self.bestCPD = cpdFactor
@@ -528,11 +528,12 @@ class GridSearchTuner(object):
 
         if printTrigger:
             print('''
-            The optimal hyper-parameters are:
-            {}
-            The corresponding error is:
-            {}
-            '''.format(self.bestHyperParam,self.bestScore))
+The optimal hyper-parameters are:
+{}, which indicates the first {} samples to be dropped, and count only every {} samples.
+The corresponding error is:
+{}
+            '''.format(self.bestHyperParam,int(self.bestHyperParam['burnInCoefficient']*self.bestModel.step),\
+                       self.bestHyperParam['thinningGap'],self.bestScore))
 
         if plotTrigger:
             plot(stepVals, targets)
