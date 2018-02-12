@@ -370,6 +370,7 @@ class GibbsSampler(Inference):
 
     def initStepCollector(self):
         self.stepVals=[]
+        self.allSamples=[]
 
     def hyperParamSet(self,hyperParams = {'step':1000,'burnInCoefficient':0.3,'thinningGap':5}):
         '''
@@ -377,7 +378,6 @@ class GibbsSampler(Inference):
         :param burnInCoefficient: proportion of starting samples to be dropped
         :param thinningGap: selection gap for i.i.d
         '''
-
         if hyperParams.get('step') is not None:
             self.step = hyperParams['step']
 
@@ -435,7 +435,7 @@ class GibbsSampler(Inference):
 
             if collectTrigger is not None:
                 tempFactor.add_val(thisVarVals,tempFactor.get_val(thisVarVals) + 1)
-                self.stepCollect(tempFactor)
+                self.stepCollect(tempFactor,thisVarVals)
 
             if t >= self.burnInNum and not t % self.thinningGap:
                 newFactor.add_val(thisVarVals,newFactor.get_val(thisVarVals)+1)
@@ -468,7 +468,7 @@ class GibbsSampler(Inference):
 
         return samplePool
 
-    def stepCollect(self,theFactor:Factor):
+    def stepCollect(self,theFactor:Factor,thisVarVals):
 
         theFactor = copy.deepcopy(theFactor)
 
@@ -476,11 +476,13 @@ class GibbsSampler(Inference):
 
         self.stepVals.append(theFactor.get_val((True,)))
 
+        self.allSamples.append(thisVarVals)
+
     def get_steps_vals(self):
         '''
         :return: all steps values
         '''
-        return  self.stepVals
+        return self.stepVals,self.allSamples
 
 class GridSearchTuner(object):
 
@@ -499,18 +501,19 @@ class GridSearchTuner(object):
         :param targets: real values for query variable probability distribution, Factor
         :return: best model
         '''
-        # exhaustive search for every possible combination of hyper-parameter values, recursive
 
+        _ = self.bestModel.query(queries,evidences,printTrigger=False,collectTrigger=True)
+        stepVals,stepSamples = self.bestModel.get_steps_vals()
+
+        # exhaustive search for every possible combination of hyper-parameter values, recursive
         def search(hyperParamKeys:list,hyperParamVals:dict,bestHyperParamValsAndError:list)->list:
 
             if not hyperParamKeys:
-                self.bestModel.hyperParamSet(hyperParamVals)
-                cpdFactor = self.bestModel.query(queries,evidences,printTrigger=False,collectTrigger=plotTrigger)
+                cpdFactor = self.tuneCPD(queries,stepSamples,hyperParamVals)
                 error = abs(cpdFactor.get_val((True,))-targets.get_val((True,)))
                 if error < bestHyperParamValsAndError[1]:
                     bestHyperParamValsAndError = [hyperParamVals,error]
                     if plotTrigger:
-                        self.stepVals = self.bestModel.stepVals
                         self.bestCPD = cpdFactor
                 return bestHyperParamValsAndError
 
@@ -532,13 +535,26 @@ class GridSearchTuner(object):
             '''.format(self.bestHyperParam,self.bestScore))
 
         if plotTrigger:
-            plot(self.stepVals, targets)
+            plot(stepVals, targets)
             print('Variables: {}\n Probability Distribution:\n{}\n'.format(self.bestCPD.scope,\
                                                                            self.bestCPD.get_all_val()))
 
         self.bestModel.hyperParamSet(self.bestHyperParam)
 
         return self.bestModel
+
+    def tuneCPD(self,queries:list,stepSamples:list,hyperParamVals:dict):
+
+        tunedCPD = Factor(tuple(queries),defaultVal=0)
+
+        burnInNum = hyperParamVals['burnInCoefficient']*len(stepSamples)
+
+        for sample in stepSamples[int(burnInNum)::hyperParamVals['thinningGap']]:
+            tunedCPD.add_val(sample,tunedCPD.get_val(sample)+1)
+
+        tunedCPD.normalize()
+
+        return tunedCPD
 
 def main_test():
     #TODO IMPLEMENT A GENERAL TEST FUNC
