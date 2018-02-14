@@ -225,12 +225,20 @@ class VE(Inference):
         :param evidences: dict of evidences       e.g. {'c':True,'d':False}
         :return: a factor with value distribution on query variables only (normalized)
         '''
+
         factors = copy.deepcopy(self.model.factors)
 
-        varsToBeEliminated = set(self.model.nodes.keys())-set(queries)-set(evidences.keys())
+        blanket_factors = self.is_markov_blanket(queries, evidences,factors)
+
+        if not blanket_factors:
+            varsToBeEliminated = set(self.model.nodes.keys())-set(queries)-set(evidences.keys())
+
+        else:
+            varsToBeEliminated = []
+            factors = blanket_factors
 
         for i in range(len(factors)):
-            factors[i] = self.giveEvidence(factors[i],evidences)
+            factors[i] = self.giveEvidence(factors[i], evidences)
 
         cpd_factor = self.sum_product(factors,varsToBeEliminated)
         cpd_factor.normalize()
@@ -240,6 +248,17 @@ class VE(Inference):
                                                                            cpd_factor.get_all_val()))
 
         return cpd_factor
+
+    def is_markov_blanket(self,queries,evidences,factors):
+
+        blanket = []
+
+        for factor in factors:
+            if set(factor.scope).intersection(queries):
+                if set(factor.scope) - set(queries) - set(evidences.keys()):
+                    return False
+                blanket.append(factor)
+        return blanket
 
     def sum_product(self,factors,vars)->Factor:
         '''
@@ -414,7 +433,7 @@ class GibbsSampler(Inference):
         :param steps: number of sample sets needed
         :return: desired cpd factor
         '''
-        samplePool = {}
+        samplePool = self.initSamplePool(vars)
 
         newFactor = Factor(tuple(queries),defaultVal=0)
 
@@ -443,6 +462,17 @@ class GibbsSampler(Inference):
         newFactor.normalize()
 
         return newFactor
+
+    def initSamplePool(self,vars):
+        samplePool=dict()
+        for var in vars:
+            particle = np.random.rand()
+            if particle <= 0.5:
+                newSampleVal = True
+            else:
+                newSampleVal = False
+            samplePool[var] = newSampleVal
+        return samplePool
 
     def sample(self,var:str,samplePool:dict,evidences:dict)->dict:
         '''
@@ -478,7 +508,7 @@ class GibbsSampler(Inference):
 
         self.allSamples.append(thisVarVals)
 
-    def get_steps_vals(self):
+    def get_steps(self):
         '''
         :return: all steps values
         '''
@@ -503,7 +533,7 @@ class GridSearchTuner(object):
         '''
 
         _ = self.bestModel.query(queries,evidences,printTrigger=False,collectTrigger=True)
-        stepVals,stepSamples = self.bestModel.get_steps_vals()
+        stepVals,stepSamples = self.bestModel.get_steps()
 
         # exhaustive search for every possible combination of hyper-parameter values, recursive
         def search(hyperParamKeys:list,hyperParamVals:dict,bestHyperParamValsAndError:list)->list:
