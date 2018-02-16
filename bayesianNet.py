@@ -20,6 +20,10 @@ def plot(pointsA:list,exactFactorForStepShow):
     plt.legend(['Gibbs Sampling', 'Variable Elimination'])
     plt.show()
 
+def printVal(cpd):
+    print('Variables: {}\n Probability Distribution:\n{}\n'.format(cpd.scope, \
+                                                                   cpd.get_all_val()))
+
 def cleanser(theClass=tuple,posOfParam=2):
 	def wrapper(func):
 		def decFunc(*args,**kw):
@@ -244,8 +248,7 @@ class VE(Inference):
         cpd_factor.normalize()
 
         if printTrigger:
-            print('Variables: {}\n Probability Distribution:\n{}\n'.format(cpd_factor.scope, \
-                                                                           cpd_factor.get_all_val()))
+            printVal(cpd_factor)
 
         return cpd_factor
 
@@ -422,8 +425,8 @@ class GibbsSampler(Inference):
             plot(self.stepVals,exactFactorForStepShow)
 
         if printTrigger:
-            print('Variables: {}\n Probability Distribution:\n{}\n'.format(cpd.scope, \
-                                                                           cpd.get_all_val()))
+            print(cpd)
+
         return cpd
 
     def gibbs(self,vars:list,queries:list,evidences:dict,collectTrigger:bool=False)->Factor:
@@ -524,7 +527,7 @@ class GridSearchTuner(object):
         self.bestModel = model
         self.hyperParamCandidates = hyperParamCandidates
 
-    def tune(self,queries:list,targets:Factor,evidences:dict=dict(),printTrigger=True,plotTrigger=False):
+    def tune(self,queries:list,targets:Factor,evidences:dict=dict(),printTrigger=True,plotTrigger=False,asymptoteError=1e-5):
         '''
         :param queries: same as model.query
         :param evidences: same as model.query
@@ -567,8 +570,7 @@ The corresponding error is:
 
         if plotTrigger:
             plot(stepVals, targets)
-            print('Variables: {}\n Probability Distribution:\n{}\n'.format(self.bestCPD.scope,\
-                                                                           self.bestCPD.get_all_val()))
+            printVal(self.bestCPD)
 
         self.bestModel.hyperParamSet(self.bestHyperParam)
 
